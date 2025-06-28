@@ -35,6 +35,38 @@ app.post("/webhook", async (req, res) => {
     // Update database if needed
   }
 
+  app.get("/verify", async (req, res) => {
+  const customerEmail = req.query.email;
+
+  if (!customerEmail) {
+    return res.status(400).json({ access: false, message: "No email provided." });
+  }
+
+  try {
+    const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+    const customer = customers.data[0];
+
+    if (!customer) {
+      return res.status(403).json({ access: false, message: "No Stripe customer found." });
+    }
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: "active",
+      limit: 1,
+    });
+
+    if (subscriptions.data.length > 0) {
+      return res.json({ access: true });
+    } else {
+      return res.json({ access: false, message: "No active subscription." });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ access: false, message: "Server error." });
+  }
+});
+
   res.sendStatus(200);
 });
 
